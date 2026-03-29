@@ -1,0 +1,120 @@
+// almide/base64 — Base64 encoding and decoding
+//
+// Standard (RFC 4648) and URL-safe variants.
+// Pure Almide implementation, no external dependencies.
+//
+//   base64.encode("Hello")           // => "SGVsbG8="
+//   base64.decode("SGVsbG8=")        // => ok("Hello")
+//   base64.encode_url("Hello")       // => "SGVsbG8"
+//   base64.decode_url("SGVsbG8")     // => ok("Hello")
+
+// ── Alphabet ────────────────────────────────────────
+
+let STANDARD = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+let URL_SAFE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+
+// ── Public API ──────────────────────────────────────
+
+fn encode(input: String) -> String =
+  encode_with(string.to_bytes(input), STANDARD, true)
+
+fn decode(input: String) -> Result[String, String] = {
+  let bs = decode_with(input, false)
+  match bs {
+    ok(bytes) => ok(string.from_bytes(bytes)),
+    err(e) => err(e),
+  }
+}
+
+fn encode_url(input: String) -> String =
+  encode_with(string.to_bytes(input), URL_SAFE, false)
+
+fn decode_url(input: String) -> Result[String, String] = {
+  let bs = decode_with(input, true)
+  match bs {
+    ok(bytes) => ok(string.from_bytes(bytes)),
+    err(e) => err(e),
+  }
+}
+
+fn encode_bytes(input: List[Int]) -> String =
+  encode_with(input, STANDARD, true)
+
+fn decode_bytes(input: String) -> Result[List[Int], String] =
+  decode_with(input, false)
+
+fn encode_bytes_url(input: List[Int]) -> String =
+  encode_with(input, URL_SAFE, false)
+
+fn decode_bytes_url(input: String) -> Result[List[Int], String] =
+  decode_with(input, true)
+
+// ── Encoder ─────────────────────────────────────────
+
+local fn encode_with(input: List[Int], alphabet: String, pad: Bool) -> String =
+  encode_chunks(input, 0, alphabet, pad, "")
+
+local fn encode_chunks(input: List[Int], pos: Int, alpha: String, pad: Bool, acc: String) -> String = {
+  let len = list.len(input)
+  if pos >= len then acc
+  else {
+    let remaining = len - pos
+    let b0 = list.get_or(input, pos, 0)
+    let b1 = list.get_or(input, pos + 1, 0)
+    let b2 = list.get_or(input, pos + 2, 0)
+
+    let c0 = string.get(alpha, int.bshr(b0, 2)) ?? ""
+    let c1 = string.get(alpha, int.bor(int.bshl(int.band(b0, 3), 4), int.bshr(b1, 4))) ?? ""
+    let c2 = if remaining > 1 then string.get(alpha, int.bor(int.bshl(int.band(b1, 15), 2), int.bshr(b2, 6))) ?? ""
+             else if pad then "=" else ""
+    let c3 = if remaining > 2 then string.get(alpha, int.band(b2, 63)) ?? ""
+             else if pad then "=" else ""
+
+    encode_chunks(input, pos + 3, alpha, pad, acc + c0 + c1 + c2 + c3)
+  }
+}
+
+// ── Decoder ─────────────────────────────────────────
+
+local fn decode_with(input: String, url_safe: Bool) -> Result[List[Int], String] = {
+  let cleaned = string.replace(string.replace(input, "\n", ""), "\r", "")
+  let stripped = string.replace(cleaned, "=", "")
+  decode_chunks(stripped, 0, url_safe, [])
+}
+
+local fn char_to_val(ch: String, url_safe: Bool) -> Result[Int, String] = {
+  let cp = string.codepoint(ch) ?? 0
+  if cp >= 65 and cp <= 90 then ok(cp - 65)
+  else if cp >= 97 and cp <= 122 then ok(cp - 71)
+  else if cp >= 48 and cp <= 57 then ok(cp + 4)
+  else if url_safe and ch == "-" then ok(62)
+  else if url_safe and ch == "_" then ok(63)
+  else if not url_safe and ch == "+" then ok(62)
+  else if not url_safe and ch == "/" then ok(63)
+  else err("invalid base64 character '${ch}'")
+}
+
+local effect fn decode_chunks(input: String, pos: Int, url_safe: Bool, acc: List[Int]) -> Result[List[Int], String] = {
+  let len = string.len(input)
+  if pos >= len then ok(acc)
+  else {
+    let remaining = len - pos
+    let v0 = char_to_val(string.get(input, pos) ?? "", url_safe)!
+    let v1 = if remaining > 1 then char_to_val(string.get(input, pos + 1) ?? "", url_safe)! else 0
+    let v2 = if remaining > 2 then char_to_val(string.get(input, pos + 2) ?? "", url_safe)! else 0
+    let v3 = if remaining > 3 then char_to_val(string.get(input, pos + 3) ?? "", url_safe)! else 0
+
+    let byte0 = int.bor(int.bshl(v0, 2), int.bshr(v1, 4))
+    let new_acc = if remaining >= 2 then {
+      let byte1 = int.band(int.bor(int.bshl(v1, 4), int.bshr(v2, 2)), 255)
+      if remaining >= 3 then {
+        let byte2 = int.band(int.bor(int.bshl(v2, 6), v3), 255)
+        if remaining >= 4 then acc + [byte0, byte1, byte2]
+        else if remaining == 3 then acc + [byte0, byte1]
+        else acc + [byte0]
+      } else acc + [byte0]
+    } else acc + [byte0]
+
+    decode_chunks(input, pos + 4, url_safe, new_acc)
+  }
+}

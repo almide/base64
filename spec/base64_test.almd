@@ -1,0 +1,157 @@
+import self as base64
+
+fn unwrap_str(r: Result[String, String]) -> String = match r {
+  ok(s) => s,
+  err(e) => { println("ERROR: ${e}"); "" },
+}
+
+fn is_err(r: Result[String, String]) -> Bool = match r {
+  ok(_) => false,
+  err(_) => true,
+}
+
+// ═══════════════════════════════════════════════════════
+// Encode: standard
+// ═══════════════════════════════════════════════════════
+
+test "encode empty" {
+  assert_eq(base64.encode(""), "")
+}
+
+test "encode Hello" {
+  assert_eq(base64.encode("Hello"), "SGVsbG8=")
+}
+
+test "encode Hello World" {
+  assert_eq(base64.encode("Hello World"), "SGVsbG8gV29ybGQ=")
+}
+
+test "encode single char" {
+  assert_eq(base64.encode("A"), "QQ==")
+}
+
+test "encode two chars" {
+  assert_eq(base64.encode("AB"), "QUI=")
+}
+
+test "encode three chars" {
+  assert_eq(base64.encode("ABC"), "QUJD")
+}
+
+test "encode with special chars" {
+  assert_eq(base64.encode("foo:bar"), "Zm9vOmJhcg==")
+}
+
+test "encode binary-like" {
+  assert_eq(base64.encode("Man"), "TWFu")
+}
+
+// ═══════════════════════════════════════════════════════
+// Decode: standard
+// ═══════════════════════════════════════════════════════
+
+test "decode empty" {
+  assert_eq(unwrap_str(base64.decode("")), "")
+}
+
+test "decode Hello" {
+  assert_eq(unwrap_str(base64.decode("SGVsbG8=")), "Hello")
+}
+
+test "decode Hello World" {
+  assert_eq(unwrap_str(base64.decode("SGVsbG8gV29ybGQ=")), "Hello World")
+}
+
+test "decode no padding" {
+  assert_eq(unwrap_str(base64.decode("SGVsbG8")), "Hello")
+}
+
+test "decode single char" {
+  assert_eq(unwrap_str(base64.decode("QQ==")), "A")
+}
+
+test "decode two chars" {
+  assert_eq(unwrap_str(base64.decode("QUI=")), "AB")
+}
+
+test "decode three chars" {
+  assert_eq(unwrap_str(base64.decode("QUJD")), "ABC")
+}
+
+test "decode Man" {
+  assert_eq(unwrap_str(base64.decode("TWFu")), "Man")
+}
+
+// ═══════════════════════════════════════════════════════
+// Roundtrip
+// ═══════════════════════════════════════════════════════
+
+test "roundtrip short" {
+  assert_eq(unwrap_str(base64.decode(base64.encode("hi"))), "hi")
+}
+
+test "roundtrip longer" {
+  let s = "The quick brown fox jumps over the lazy dog"
+  assert_eq(unwrap_str(base64.decode(base64.encode(s))), s)
+}
+
+test "roundtrip empty" {
+  assert_eq(unwrap_str(base64.decode(base64.encode(""))), "")
+}
+
+test "roundtrip special" {
+  let s = "user:password123!"
+  assert_eq(unwrap_str(base64.decode(base64.encode(s))), s)
+}
+
+// ═══════════════════════════════════════════════════════
+// URL-safe
+// ═══════════════════════════════════════════════════════
+
+test "encode_url no padding" {
+  let result = base64.encode_url("Hello")
+  assert_eq(result, "SGVsbG8");
+  assert(not string.contains(result, "="))
+}
+
+test "decode_url" {
+  assert_eq(unwrap_str(base64.decode_url("SGVsbG8")), "Hello")
+}
+
+test "url roundtrip" {
+  let s = "data with +/= chars"
+  assert_eq(unwrap_str(base64.decode_url(base64.encode_url(s))), s)
+}
+
+test "url safe uses - and _" {
+  let encoded = base64.encode_url("subjects?_d")
+  assert(not string.contains(encoded, "+"));
+  assert(not string.contains(encoded, "/"))
+}
+
+// ═══════════════════════════════════════════════════════
+// Bytes API
+// ═══════════════════════════════════════════════════════
+
+test "encode_bytes" {
+  assert_eq(base64.encode_bytes([72, 101, 108, 108, 111]), "SGVsbG8=")
+}
+
+test "decode_bytes" {
+  match base64.decode_bytes("SGVsbG8=") {
+    ok(bs) => {
+      assert_eq(list.len(bs), 5);
+      assert_eq(list.get(bs, 0) ?? 0, 72);
+      assert_eq(list.get(bs, 4) ?? 0, 111)
+    },
+    err(e) => assert(false, e),
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Error cases
+// ═══════════════════════════════════════════════════════
+
+test "decode invalid char" {
+  assert(is_err(base64.decode("SGVs#G8=")))
+}
