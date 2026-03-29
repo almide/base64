@@ -2,7 +2,10 @@ import self as base64
 
 fn unwrap_str(r: Result[String, String]) -> String = match r {
   ok(s) => s,
-  err(e) => { println("ERROR: ${e}"); "" },
+  err(e) => {
+    println("ERROR: ${e}");
+    ""
+  },
 }
 
 fn is_err(r: Result[String, String]) -> Bool = match r {
@@ -13,7 +16,6 @@ fn is_err(r: Result[String, String]) -> Bool = match r {
 // ═══════════════════════════════════════════════════════
 // Encode: standard
 // ═══════════════════════════════════════════════════════
-
 test "encode empty" {
   assert_eq(base64.encode(""), "")
 }
@@ -49,7 +51,6 @@ test "encode binary-like" {
 // ═══════════════════════════════════════════════════════
 // Decode: standard
 // ═══════════════════════════════════════════════════════
-
 test "decode empty" {
   assert_eq(unwrap_str(base64.decode("")), "")
 }
@@ -85,13 +86,12 @@ test "decode Man" {
 // ═══════════════════════════════════════════════════════
 // Roundtrip
 // ═══════════════════════════════════════════════════════
-
 test "roundtrip short" {
   assert_eq(unwrap_str(base64.decode(base64.encode("hi"))), "hi")
 }
 
 test "roundtrip longer" {
-  let s = "The quick brown fox jumps over the lazy dog"
+  let s = "The quick brown fox jumps over the lazy dog";
   assert_eq(unwrap_str(base64.decode(base64.encode(s))), s)
 }
 
@@ -100,16 +100,15 @@ test "roundtrip empty" {
 }
 
 test "roundtrip special" {
-  let s = "user:password123!"
+  let s = "user:password123!";
   assert_eq(unwrap_str(base64.decode(base64.encode(s))), s)
 }
 
 // ═══════════════════════════════════════════════════════
 // URL-safe
 // ═══════════════════════════════════════════════════════
-
 test "encode_url no padding" {
-  let result = base64.encode_url("Hello")
+  let result = base64.encode_url("Hello");
   assert_eq(result, "SGVsbG8");
   assert(not string.contains(result, "="))
 }
@@ -119,12 +118,12 @@ test "decode_url" {
 }
 
 test "url roundtrip" {
-  let s = "data with +/= chars"
+  let s = "data with +/= chars";
   assert_eq(unwrap_str(base64.decode_url(base64.encode_url(s))), s)
 }
 
 test "url safe uses - and _" {
-  let encoded = base64.encode_url("subjects?_d")
+  let encoded = base64.encode_url("subjects?_d");
   assert(not string.contains(encoded, "+"));
   assert(not string.contains(encoded, "/"))
 }
@@ -132,7 +131,6 @@ test "url safe uses - and _" {
 // ═══════════════════════════════════════════════════════
 // Bytes API
 // ═══════════════════════════════════════════════════════
-
 test "encode_bytes" {
   assert_eq(base64.encode_bytes([72, 101, 108, 108, 111]), "SGVsbG8=")
 }
@@ -151,7 +149,6 @@ test "decode_bytes" {
 // ═══════════════════════════════════════════════════════
 // Error cases
 // ═══════════════════════════════════════════════════════
-
 test "decode invalid char" {
   assert(is_err(base64.decode("SGVs#G8=")))
 }
