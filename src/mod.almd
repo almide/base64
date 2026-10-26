@@ -16,23 +16,23 @@ let URL_SAFE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_
 // ── Public API ──────────────────────────────────────
 
 fn encode(input: String) -> String =
-  encode_with(string.to_bytes(input), STANDARD, true)
+  encode_with(bytes.to_list(bytes.from_string(input)), STANDARD, true)
 
 fn decode(input: String) -> Result[String, String] = {
   let bs = decode_with(input, false)
   match bs {
-    ok(bytes) => ok(string.from_bytes(bytes)),
+    ok(bytes) => ok(bytes.to_string_lossy(bytes.from_list(bytes))),
     err(e) => err(e),
   }
 }
 
 fn encode_url(input: String) -> String =
-  encode_with(string.to_bytes(input), URL_SAFE, false)
+  encode_with(bytes.to_list(bytes.from_string(input)), URL_SAFE, false)
 
 fn decode_url(input: String) -> Result[String, String] = {
   let bs = decode_with(input, true)
   match bs {
-    ok(bytes) => ok(string.from_bytes(bytes)),
+    ok(bytes) => ok(bytes.to_string_lossy(bytes.from_list(bytes))),
     err(e) => err(e),
   }
 }
@@ -59,9 +59,9 @@ local fn encode_chunks(input: List[Int], pos: Int, alpha: String, pad: Bool, acc
   if pos >= len then acc
   else {
     let remaining = len - pos
-    let b0 = list.get_or(input, pos, 0)
-    let b1 = list.get_or(input, pos + 1, 0)
-    let b2 = list.get_or(input, pos + 2, 0)
+    let b0 = list.get(input, pos) ?? 0
+    let b1 = list.get(input, pos + 1) ?? 0
+    let b2 = list.get(input, pos + 2) ?? 0
 
     let c0 = string.get(alpha, int.bshr(b0, 2)) ?? ""
     let c1 = string.get(alpha, int.bor(int.bshl(int.band(b0, 3), 4), int.bshr(b1, 4))) ?? ""
@@ -83,7 +83,7 @@ local fn decode_with(input: String, url_safe: Bool) -> Result[List[Int], String]
 }
 
 local fn char_to_val(ch: String, url_safe: Bool) -> Result[Int, String] = {
-  let cp = string.codepoint(ch) ?? 0
+  let cp = string.to_codepoint(ch) ?? 0
   if cp >= 65 and cp <= 90 then ok(cp - 65)
   else if cp >= 97 and cp <= 122 then ok(cp - 71)
   else if cp >= 48 and cp <= 57 then ok(cp + 4)
