@@ -21,7 +21,7 @@ fn encode(input: String) -> String =
 fn decode(input: String) -> Result[String, String] = {
   let bs = decode_with(input, false)
   match bs {
-    ok(bytes) => ok(bytes.to_string_lossy(bytes.from_list(bytes))),
+    ok(xs) => ok(bytes.to_string_lossy(bytes.from_list(xs))),
     err(e) => err(e),
   }
 }
@@ -32,7 +32,7 @@ fn encode_url(input: String) -> String =
 fn decode_url(input: String) -> Result[String, String] = {
   let bs = decode_with(input, true)
   match bs {
-    ok(bytes) => ok(bytes.to_string_lossy(bytes.from_list(bytes))),
+    ok(xs) => ok(bytes.to_string_lossy(bytes.from_list(xs))),
     err(e) => err(e),
   }
 }
